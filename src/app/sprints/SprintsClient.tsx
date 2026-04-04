@@ -22,10 +22,12 @@ export default function UnifiedSprintsClient({ initialSprints }: { initialSprint
     e.preventDefault();
     setLoading(true);
 
+    const safeTargetDate = targetDate ? new Date(targetDate).toISOString() : null;
+
     const res = await fetch('/api/sprints', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, subjectName: subject, targetDate })
+      body: JSON.stringify({ title, subjectName: subject, targetDate: safeTargetDate })
     });
     
     // If not authenticated for Google Sync, force a login

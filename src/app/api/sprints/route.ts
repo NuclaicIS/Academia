@@ -31,8 +31,8 @@ export async function POST(req: Request) {
       const event = {
         summary: title + " - " + subjectName,
         description: "Study Sprint - Auto-synced from Academic OS",
-        start: { dateTime: startTime.toISOString() },
-        end: { dateTime: endTime.toISOString() },
+        start: { dateTime: startTime.toISOString(), timeZone: "Asia/Kolkata" },
+        end: { dateTime: endTime.toISOString(), timeZone: "Asia/Kolkata" },
         reminders: {
           useDefault: false,
           overrides: [
