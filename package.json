@@ -10,6 +10,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@vercel/analytics": "latest",
     "@google/genai": "^1.46.0",
     "@prisma/client": "^6.0.0",
     "date-fns": "^4.1.0",
