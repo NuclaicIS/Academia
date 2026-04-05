@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Subject {
@@ -31,12 +32,14 @@ model Event {
 }
 
 model StudySprint {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
-  durationMin Int      @default(25) // Sprint duration in minutes
-  completed   Boolean  @default(false)
+  durationMin Int       @default(25)
+  completed   Boolean   @default(false)
   subjectId   String
-  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  userEmail   String    @default("")
+  deadline    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
