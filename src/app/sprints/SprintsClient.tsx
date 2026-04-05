@@ -1,13 +1,15 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import Link from 'next/link';
 
 export default function UnifiedSprintsClient({ initialSprints }: { initialSprints: any[] }) {
+  const { data: session } = useSession();
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
 
   // Ask for Laptop Notification Permissions
   useEffect(() => {
@@ -21,6 +23,7 @@ export default function UnifiedSprintsClient({ initialSprints }: { initialSprint
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setStatus(null);
 
     const safeTargetDate = targetDate ? new Date(targetDate).toISOString() : null;
 
@@ -30,15 +33,23 @@ export default function UnifiedSprintsClient({ initialSprints }: { initialSprint
       body: JSON.stringify({ title, subjectName: subject, targetDate: safeTargetDate })
     });
     
-    // If not authenticated for Google Sync, force a login
     if (res.status === 401) {
+      // Not signed in — redirect to Google
       signIn('google');
+      return;
     } else if (res.ok) {
-       // Fire a quick Local Laptop Notification to prove we created it!
-       if (Notification.permission === "granted") {
-           new Notification("Sprint Live!", { body: `Your sprint '${title}' has saved to the database and your phone alarm is officially armed.` });
-       }
-       window.location.reload();
+      const data = await res.json();
+      if (Notification.permission === "granted") {
+        new Notification("Sprint Live!", { body: `'${title}' saved to database${data.googleSynced ? ' and synced to your phone calendar!' : '!'}` });
+      }
+      setStatus(data.googleSynced ? "✅ Saved & synced to phone!" : "✅ Saved! (Calendar sync pending)");
+      setTitle('');
+      setSubject('');
+      setTargetDate('');
+      setTimeout(() => window.location.reload(), 1500);
+    } else {
+      const data = await res.json();
+      setStatus("❌ " + data.error);
     }
     setLoading(false);
   };
@@ -69,6 +80,26 @@ export default function UnifiedSprintsClient({ initialSprints }: { initialSprint
       </header>
 
       <main className="flex-1 px-6 space-y-8">
+        {/* Sign-In Banner */}
+        {!session && (
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-yellow-400 font-medium text-sm">Sign in to enable phone reminders</p>
+              <p className="text-zinc-500 text-xs mt-0.5">Connect Google to sync sprints to your calendar</p>
+            </div>
+            <button onClick={() => signIn('google')} className="bg-white text-black font-medium text-xs px-4 py-2.5 rounded-xl hover:bg-zinc-200 transition-colors whitespace-nowrap">
+              Sign In
+            </button>
+          </div>
+        )}
+
+        {session && (
+          <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-3 flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            <p className="text-green-400 text-xs font-medium">Connected as {session.user?.email} — Sprints will sync to your phone</p>
+          </div>
+        )}
+
         <section>
           <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-6 border border-zinc-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.5)]">
             <h2 className="text-lg font-semibold mb-4 text-zinc-100 flex items-center justify-between">
@@ -83,6 +114,7 @@ export default function UnifiedSprintsClient({ initialSprints }: { initialSprint
                 {loading ? "Engaging Both Systems..." : "Add to Database & Calendar"}
               </button>
             </form>
+            {status && <p className={`text-sm mt-3 font-medium ${status.includes('❌') ? 'text-red-400' : 'text-green-400'}`}>{status}</p>}
           </div>
         </section>
 

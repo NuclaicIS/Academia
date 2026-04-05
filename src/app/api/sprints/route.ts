@@ -9,9 +9,14 @@ export async function POST(req: Request) {
     // @ts-ignore
     const token = session?.accessToken;
 
+    // Force Google sign-in before allowing sprint creation
+    if (!token) {
+      return NextResponse.json({ error: "Sign in with Google first to enable phone reminders!" }, { status: 401 });
+    }
+
     const { title, subjectName, targetDate } = await req.json();
 
-    // 1. Universal Database Insertion
+    // 1. Save to Cloud Database
     let subject = await prisma.subject.findFirst({ where: { name: subjectName } });
     if (!subject) {
       subject = await prisma.subject.create({ data: { name: subjectName } });
@@ -23,9 +28,9 @@ export async function POST(req: Request) {
       }
     });
 
-    // 2. Mobile Google Calendar Sync
+    // 2. Sync to Google Calendar for Phone Reminders
     let googleSynced = false;
-    if (token && targetDate) {
+    if (targetDate) {
       const startTime = new Date(targetDate);
       const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
       const event = {
