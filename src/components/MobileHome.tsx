@@ -26,11 +26,20 @@ export default function MobileHome() {
           </Link>
         </section>
 
-        {/* Install PWA Tip */}
-        <section className="bg-zinc-900/60 rounded-2xl p-5 border border-zinc-800/60">
-          <h3 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">📱 Install on Phone</h3>
+        {/* Android App Download */}
+        <section className="bg-zinc-900/60 rounded-2xl p-5 border border-green-800/40">
+          <h3 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">🤖 Get the Android App</h3>
           <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
-            Tap the share/menu button in your browser and select <strong className="text-zinc-300">&quot;Add to Home Screen&quot;</strong> to install Academic OS as an app. You&apos;ll get push notifications with sound for all your deadlines!
+            The full Academic OS app: launcher home screen, sprint deadline notifications that work offline, and an AI (Gemma 2) that runs on your phone.
+          </p>
+          <a
+            href="https://github.com/vidhanagrwal92-netizen/shool/releases/latest/download/AcademicOS.apk"
+            className="mt-3 block w-full bg-green-600 hover:bg-green-500 text-white text-center font-medium text-sm px-4 py-3 rounded-xl transition-colors"
+          >
+            ⬇️ Download APK (154 MB)
+          </a>
+          <p className="text-[10px] text-zinc-600 mt-2 leading-relaxed">
+            After downloading, tap the file and allow &quot;install from unknown sources&quot; when Android asks.
           </p>
         </section>
       </main>
