@@ -12,6 +12,27 @@ export default function UnifiedSprintsClient() {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [sprints, setSprints] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [inIframe, setInIframe] = useState(false);
+
+  // Detect if we're embedded in the OS desktop window (an iframe). Google
+  // sign-in refuses to load inside an iframe, so we pop it out to a real tab.
+  useEffect(() => {
+    try {
+      setInIframe(window.self !== window.top);
+    } catch {
+      setInIframe(true);
+    }
+  }, []);
+
+  const startSignIn = () => {
+    if (inIframe) {
+      // Open the standalone Sprints page in a new tab; sign-in works there,
+      // and this window's session refreshes automatically when you come back.
+      window.open('/sprints', '_blank', 'noopener');
+    } else {
+      signIn('google');
+    }
+  };
 
   // Register service worker for push notifications
   useEffect(() => {
@@ -62,7 +83,9 @@ export default function UnifiedSprintsClient() {
     });
 
     if (res.status === 401) {
-      signIn('google');
+      setStatusMsg("❌ Please sign in first.");
+      setLoading(false);
+      startSignIn();
       return;
     } else if (res.ok) {
       // Schedule phone notification via service worker
@@ -129,13 +152,17 @@ export default function UnifiedSprintsClient() {
       <main className="flex-1 px-6 space-y-8">
         {/* Auth Status */}
         {authStatus === 'unauthenticated' && (
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-yellow-400 font-medium text-sm">Sign in to start tracking</p>
-              <p className="text-zinc-500 text-xs mt-0.5">Your sprints are private to your account</p>
+              <p className="text-zinc-500 text-xs mt-0.5">
+                {inIframe
+                  ? 'Opens in a new tab — Google blocks sign-in inside app windows. Come back here after.'
+                  : 'Your sprints are private to your account'}
+              </p>
             </div>
-            <button onClick={() => signIn('google')} className="bg-white text-black font-medium text-xs px-4 py-2.5 rounded-xl hover:bg-zinc-200 transition-colors whitespace-nowrap">
-              Sign In
+            <button onClick={startSignIn} className="bg-white text-black font-medium text-xs px-4 py-2.5 rounded-xl hover:bg-zinc-200 transition-colors whitespace-nowrap">
+              {inIframe ? 'Sign In ↗' : 'Sign In'}
             </button>
           </div>
         )}
