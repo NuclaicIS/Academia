@@ -10,9 +10,10 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@vercel/analytics": "latest",
     "@google/genai": "^1.46.0",
+    "@mlc-ai/web-llm": "^0.2.84",
     "@prisma/client": "^6.0.0",
+    "@vercel/analytics": "latest",
     "date-fns": "^4.1.0",
     "lucide-react": "^1.0.1",
     "next": "16.2.1",
