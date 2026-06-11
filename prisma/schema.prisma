@@ -54,3 +54,20 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+model UserSettings {
+  userEmail String   @id
+  data      String   @default("{}") // JSON: wallpaper, accent, iconSize, taskbarPosition
+  updatedAt DateTime @updatedAt
+}
+
+model SavedArticle {
+  id        String   @id @default(uuid())
+  userEmail String
+  title     String
+  url       String
+  content   String // extracted article text for offline reading
+  createdAt DateTime @default(now())
+
+  @@index([userEmail])
+}

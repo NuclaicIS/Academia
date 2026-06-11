@@ -7,7 +7,7 @@ import Browser from './apps/Browser';
 import AIChat from './apps/AIChat';
 import Settings from './apps/Settings';
 import LoginScreen from './LoginScreen';
-import { loadSettings, onSettingsChange, wallpaperCss, DEFAULT_SETTINGS, OSSettings } from '@/lib/osSettings';
+import { loadSettings, onSettingsChange, wallpaperCss, loadAccountSettings, DEFAULT_SETTINGS, OSSettings } from '@/lib/osSettings';
 
 interface AppDef {
   id: string;
@@ -88,6 +88,13 @@ export default function Desktop() {
     setOsSettings(loadSettings());
     return onSettingsChange(setOsSettings);
   }, []);
+
+  // Once signed in, pull this account's settings from the database
+  useEffect(() => {
+    if (authStatus === 'authenticated') {
+      loadAccountSettings();
+    }
+  }, [authStatus]);
 
   const focusedId = windows.reduce<string | null>(
     (top, w) => (!w.minimized && (top === null || w.z > windows.find(x => x.id === top)!.z) ? w.id : top),

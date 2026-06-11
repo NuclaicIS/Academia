@@ -55,6 +55,27 @@ export function saveSettings(patch: Partial<OSSettings>) {
   const next = { ...loadSettings(), ...patch };
   localStorage.setItem(KEY, JSON.stringify(next));
   window.dispatchEvent(new CustomEvent(EVENT, { detail: next }));
+  // Also sync to the signed-in account so customization follows the email
+  fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(next),
+  }).catch(() => {}); // guests / offline: local save is enough
+}
+
+// Pull account settings (if signed in) and apply them locally
+export async function loadAccountSettings(): Promise<OSSettings | null> {
+  try {
+    const res = await fetch('/api/settings');
+    const { settings } = await res.json();
+    if (settings) {
+      const merged = { ...DEFAULT_SETTINGS, ...settings };
+      localStorage.setItem(KEY, JSON.stringify(merged));
+      window.dispatchEvent(new CustomEvent(EVENT, { detail: merged }));
+      return merged;
+    }
+  } catch {}
+  return null;
 }
 
 export function onSettingsChange(cb: (s: OSSettings) => void): () => void {
