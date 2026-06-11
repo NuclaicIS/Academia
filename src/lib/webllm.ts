@@ -12,6 +12,17 @@ export function webGPUAvailable(): boolean {
   return typeof navigator !== 'undefined' && 'gpu' in navigator;
 }
 
+// True once the model weights have been downloaded and saved in the browser's
+// Cache storage — they persist across reloads, so it never re-downloads.
+export async function isModelCached(): Promise<boolean> {
+  try {
+    const { hasModelInCache } = await import('@mlc-ai/web-llm');
+    return await hasModelInCache(WEBLLM_MODEL);
+  } catch {
+    return false;
+  }
+}
+
 export function getEngine(onProgress: (text: string) => void): Promise<MLCEngine> {
   if (!enginePromise) {
     enginePromise = (async () => {

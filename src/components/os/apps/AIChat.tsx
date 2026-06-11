@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { getEngine, webGPUAvailable } from '@/lib/webllm';
+import { getEngine, webGPUAvailable, isModelCached } from '@/lib/webllm';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -17,6 +17,7 @@ export default function AIChat({ mode = 'chat' }: { mode?: 'chat' | 'tutor' }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [cached, setCached] = useState(false);
   // 'server' = Ollama on this computer; 'browser' = WebLLM in the visitor's browser
   const backendRef = useRef<'server' | 'browser' | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -24,6 +25,13 @@ export default function AIChat({ mode = 'chat' }: { mode?: 'chat' | 'tutor' }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, status]);
+
+  // Check if the model is already saved on this computer (so it won't re-download)
+  useEffect(() => {
+    if (webGPUAvailable()) {
+      isModelCached().then(setCached);
+    }
+  }, []);
 
   const streamFromServer = async (history: Message[]): Promise<boolean> => {
     const res = await fetch('/api/ai', {
@@ -53,9 +61,13 @@ export default function AIChat({ mode = 'chat' }: { mode?: 'chat' | 'tutor' }) {
       }]);
       return;
     }
-    setStatus('Setting up the AI on your computer — downloading qwen2.5-1.5b (about 1 GB, one time only)…');
+    const alreadySaved = await isModelCached();
+    setStatus(alreadySaved
+      ? 'Loading the AI model from your saved copy on this computer…'
+      : 'Setting up the AI — downloading qwen2.5-1.5b (~1 GB, one time only; it saves on this computer so it never downloads again)…');
     const engine = await getEngine((text) => setStatus(text));
     setStatus(null);
+    setCached(true);
 
     const chunks = await engine.chat.completions.create({
       messages: [
@@ -117,6 +129,11 @@ export default function AIChat({ mode = 'chat' }: { mode?: 'chat' | 'tutor' }) {
                 ? 'Ask me anything about your schoolwork — I explain step by step.'
                 : 'Chat with the built-in AI (qwen2.5-1.5b). It runs on this computer — no cloud needed.'}
             </p>
+            {cached && (
+              <p className="text-[11px] text-green-500/80 flex items-center gap-1">
+                ✓ AI model saved on this computer — loads instantly
+              </p>
+            )}
           </div>
         )}
         {messages.map((m, i) => (

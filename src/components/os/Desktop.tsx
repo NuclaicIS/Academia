@@ -1,9 +1,11 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 import Window, { WindowState } from './Window';
 import Calculator from './apps/Calculator';
 import Browser from './apps/Browser';
 import AIChat from './apps/AIChat';
+import LoginScreen from './LoginScreen';
 
 interface AppDef {
   id: string;
@@ -62,6 +64,8 @@ function Clock() {
 }
 
 export default function Desktop() {
+  const { data: session, status: authStatus } = useSession();
+  const [guest, setGuest] = useState(false);
   const [windows, setWindows] = useState<WindowState[]>([]);
   const [zCounter, setZCounter] = useState(10);
   const [startOpen, setStartOpen] = useState(false);
@@ -109,6 +113,23 @@ export default function Desktop() {
   };
 
   const close = (id: string) => setWindows((wins) => wins.filter((w) => w.id !== id));
+
+  // Boot / login gate — sign in at the OS level (top-level, so Google OAuth
+  // works) before reaching the desktop. Guests can skip it.
+  if (authStatus === 'loading') {
+    return (
+      <div
+        className="h-[100dvh] w-full flex items-center justify-center"
+        style={{ background: 'radial-gradient(ellipse at 30% 20%, #1e2a52 0%, #0b1020 55%, #060810 100%)' }}
+      >
+        <div className="text-4xl animate-pulse">🎓</div>
+      </div>
+    );
+  }
+
+  if (authStatus === 'unauthenticated' && !guest) {
+    return <LoginScreen onContinueAsGuest={() => setGuest(true)} />;
+  }
 
   return (
     <div
@@ -162,7 +183,9 @@ export default function Desktop() {
         >
           <div className="px-2 pb-2 mb-1 border-b border-zinc-800">
             <div className="text-sm font-semibold text-zinc-100">Academic OS</div>
-            <div className="text-[10px] text-zinc-500">Local AI: qwen2.5:1.5b</div>
+            <div className="text-[10px] text-zinc-500 truncate">
+              {session?.user?.email ? session.user.email : 'Guest · not signed in'}
+            </div>
           </div>
           {APPS.map((app) => (
             <button
@@ -174,6 +197,26 @@ export default function Desktop() {
               <span className="text-sm text-zinc-200">{app.title}</span>
             </button>
           ))}
+
+          <div className="mt-1 pt-2 border-t border-zinc-800">
+            {session ? (
+              <button
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-red-600/20 text-left text-red-400"
+              >
+                <span className="text-xl">⏻</span>
+                <span className="text-sm">Log out</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => signIn('google', { callbackUrl: '/' })}
+                className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-zinc-800/80 text-left text-zinc-200"
+              >
+                <span className="text-xl">🔑</span>
+                <span className="text-sm">Sign in with Google</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
