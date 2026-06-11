@@ -33,7 +33,7 @@ export default function MobileHome() {
             The full Academic OS app: launcher home screen, sprint deadline notifications that work offline, and an AI (Gemma 2) that runs on your phone.
           </p>
           <a
-            href="https://github.com/vidhanagrwal92-netizen/shool/releases/latest/download/AcademicOS.apk"
+            href="https://github.com/vidhanagrwal92-netizen/academic-os-app/releases/latest/download/AcademicOS.apk"
             className="mt-3 block w-full bg-green-600 hover:bg-green-500 text-white text-center font-medium text-sm px-4 py-3 rounded-xl transition-colors"
           >
             ⬇️ Download APK (154 MB)
