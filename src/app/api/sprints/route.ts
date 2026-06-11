@@ -10,7 +10,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Sign in with Google first!" }, { status: 401 });
     }
 
-    const { title, subjectName, targetDate } = await req.json();
+    const { title, subjectName, targetDate, type, remindBefore } = await req.json();
+
+    const VALID_TYPES = ['class-test', 'exam', 'homework', 'essay', 'project'];
+    const sprintType = VALID_TYPES.includes(type) ? type : 'homework';
+    const remindMin = Math.max(5, Math.min(7 * 24 * 60, parseInt(remindBefore) || 60));
 
     // Find or create the subject
     let subject = await prisma.subject.findFirst({ where: { name: subjectName } });
@@ -22,9 +26,11 @@ export async function POST(req: Request) {
     const newSprint = await prisma.studySprint.create({
       data: {
         title,
+        type: sprintType,
         subjectId: subject.id,
         userEmail: session.user.email,
         deadline: targetDate ? new Date(targetDate) : null,
+        remindBefore: remindMin,
       }
     });
 

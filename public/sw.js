@@ -15,25 +15,29 @@ self.addEventListener('activate', (event) => {
 // Listen for messages from the main app to schedule notifications
 self.addEventListener('message', (event) => {
   if (event.data.type === 'SCHEDULE_NOTIFICATION') {
-    const { title, body, deadline } = event.data;
+    const { title, body, deadline, remindBefore } = event.data;
     const now = Date.now();
     const deadlineMs = new Date(deadline).getTime();
 
-    // Notification 30 minutes before
-    const thirtyMinBefore = deadlineMs - (30 * 60 * 1000);
-    if (thirtyMinBefore > now) {
-      const delay30 = thirtyMinBefore - now;
+    // Custom reminder: N minutes before deadline (set per sprint, default 60)
+    const remindMin = parseInt(remindBefore) || 60;
+    const customBefore = deadlineMs - (remindMin * 60 * 1000);
+    if (customBefore > now) {
+      const delayCustom = customBefore - now;
+      const label = remindMin >= 60
+        ? (remindMin % 60 === 0 ? (remindMin / 60) + ' hour' + (remindMin === 60 ? '' : 's') : Math.round(remindMin / 60 * 10) / 10 + ' hours')
+        : remindMin + ' minutes';
       setTimeout(() => {
-        self.registration.showNotification('⏰ 30 Minutes Left!', {
-          body: `"${title}" is due in 30 minutes!`,
+        self.registration.showNotification('⏰ ' + label + ' left!', {
+          body: `"${title}" is due in ${label}. Time to start your sprint!`,
           icon: '/icon-192.png',
           badge: '/icon-192.png',
           vibrate: [200, 100, 200, 100, 200],
-          tag: 'sprint-30-' + title,
+          tag: 'sprint-custom-' + title,
           requireInteraction: true,
           actions: [{ action: 'open', title: 'Open App' }]
         });
-      }, delay30);
+      }, delayCustom);
     }
 
     // Notification at exact deadline

@@ -32,14 +32,25 @@ model Event {
 }
 
 model StudySprint {
-  id          String    @id @default(uuid())
-  title       String
-  durationMin Int       @default(25)
-  completed   Boolean   @default(false)
-  subjectId   String
-  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  userEmail   String    @default("")
-  deadline    DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  title        String
+  type         String    @default("homework") // class-test | exam | homework | essay | project
+  durationMin  Int       @default(25)
+  completed    Boolean   @default(false)
+  subjectId    String
+  subject      Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  userEmail    String    @default("")
+  deadline     DateTime?
+  remindBefore Int       @default(60) // minutes before deadline to remind
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }

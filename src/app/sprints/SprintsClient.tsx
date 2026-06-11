@@ -3,16 +3,63 @@ import { useState, useEffect } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import Link from 'next/link';
 
+const SPRINT_TYPES = [
+  { id: 'class-test', label: 'Class Test', icon: '📝', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' },
+  { id: 'exam', label: 'Exam', icon: '📚', color: 'text-red-400 bg-red-500/10 border-red-500/30' },
+  { id: 'homework', label: 'Homework', icon: '📓', color: 'text-blue-400 bg-blue-500/10 border-blue-500/30' },
+  { id: 'essay', label: 'Essay', icon: '✍️', color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' },
+  { id: 'project', label: 'Project', icon: '🛠️', color: 'text-green-400 bg-green-500/10 border-green-500/30' },
+] as const;
+
+const REMIND_PRESETS = [
+  { label: '15 min before', minutes: 15 },
+  { label: '30 min before', minutes: 30 },
+  { label: '1 hour before', minutes: 60 },
+  { label: '3 hours before', minutes: 180 },
+  { label: '1 day before', minutes: 1440 },
+];
+
+function typeOf(id: string) {
+  return SPRINT_TYPES.find((t) => t.id === id) || SPRINT_TYPES[2];
+}
+
+function countdown(deadline: string, now: number): { text: string; urgent: boolean; overdue: boolean } {
+  const ms = new Date(deadline).getTime() - now;
+  if (ms <= 0) {
+    const ago = -ms;
+    const d = Math.floor(ago / 86400000);
+    const h = Math.floor((ago % 86400000) / 3600000);
+    return { text: d > 0 ? `overdue by ${d}d ${h}h` : `overdue by ${h}h ${Math.floor((ago % 3600000) / 60000)}m`, urgent: true, overdue: true };
+  }
+  const d = Math.floor(ms / 86400000);
+  const h = Math.floor((ms % 86400000) / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  if (d > 0) return { text: `in ${d}d ${h}h`, urgent: d < 1, overdue: false };
+  if (h > 0) return { text: `in ${h}h ${m}m`, urgent: h < 6, overdue: false };
+  return { text: `in ${m}m`, urgent: true, overdue: false };
+}
+
 export default function UnifiedSprintsClient() {
   const { data: session, status: authStatus } = useSession();
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('');
   const [targetDate, setTargetDate] = useState('');
+  const [sprintType, setSprintType] = useState<string>('homework');
+  const [remindChoice, setRemindChoice] = useState<string>('60');
+  const [customRemind, setCustomRemind] = useState('');
+  const [customUnit, setCustomUnit] = useState<'minutes' | 'hours'>('hours');
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [sprints, setSprints] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
   const [inIframe, setInIframe] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  // Live countdown tick
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   // Detect if we're embedded in the OS desktop window (an iframe). Google
   // sign-in refuses to load inside an iframe, so we pop it out to a real tab.
@@ -23,16 +70,6 @@ export default function UnifiedSprintsClient() {
       setInIframe(true);
     }
   }, []);
-
-  const startSignIn = () => {
-    if (inIframe) {
-      // Open the standalone Sprints page in a new tab; sign-in works there,
-      // and this window's session refreshes automatically when you come back.
-      window.open('/sprints', '_blank', 'noopener');
-    } else {
-      signIn('google');
-    }
-  };
 
   // Register service worker for push notifications
   useEffect(() => {
@@ -46,27 +83,55 @@ export default function UnifiedSprintsClient() {
     }
   }, []);
 
-  // Fetch sprints for the logged-in user
+  const scheduleNotification = (sprintTitle: string, deadline: string, remindBefore: number) => {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SCHEDULE_NOTIFICATION',
+        title: sprintTitle,
+        body: `Deadline for ${sprintTitle}`,
+        deadline,
+        remindBefore,
+      });
+    }
+  };
+
+  // Fetch sprints and re-arm reminders for upcoming deadlines (service worker
+  // timers don't survive restarts, so re-schedule whenever the app opens)
   useEffect(() => {
     if (authStatus === 'authenticated') {
       fetch('/api/sprints')
         .then(r => r.json())
-        .then(data => { setSprints(data.sprints || []); setFetching(false); })
+        .then(data => {
+          const list = data.sprints || [];
+          setSprints(list);
+          setFetching(false);
+          for (const s of list) {
+            if (s.deadline && new Date(s.deadline).getTime() > Date.now()) {
+              scheduleNotification(s.title, s.deadline, s.remindBefore || 60);
+            }
+          }
+        })
         .catch(() => setFetching(false));
     } else if (authStatus === 'unauthenticated') {
       setFetching(false);
     }
   }, [authStatus]);
 
-  const scheduleNotification = (sprintTitle: string, deadline: string) => {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'SCHEDULE_NOTIFICATION',
-        title: sprintTitle,
-        body: `Deadline for ${sprintTitle}`,
-        deadline: deadline
-      });
+  const startSignIn = () => {
+    if (inIframe) {
+      window.open('/sprints', '_blank', 'noopener');
+    } else {
+      signIn('google');
     }
+  };
+
+  const effectiveRemindMinutes = (): number => {
+    if (remindChoice === 'custom') {
+      const n = parseFloat(customRemind);
+      if (!n || n <= 0) return 60;
+      return Math.round(customUnit === 'hours' ? n * 60 : n);
+    }
+    return parseInt(remindChoice);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,11 +140,12 @@ export default function UnifiedSprintsClient() {
     setStatusMsg(null);
 
     const safeTargetDate = targetDate ? new Date(targetDate).toISOString() : null;
+    const remindBefore = effectiveRemindMinutes();
 
     const res = await fetch('/api/sprints', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, subjectName: subject, targetDate: safeTargetDate })
+      body: JSON.stringify({ title, subjectName: subject, targetDate: safeTargetDate, type: sprintType, remindBefore })
     });
 
     if (res.status === 401) {
@@ -88,18 +154,16 @@ export default function UnifiedSprintsClient() {
       startSignIn();
       return;
     } else if (res.ok) {
-      // Schedule phone notification via service worker
       if (safeTargetDate) {
-        scheduleNotification(title, safeTargetDate);
+        scheduleNotification(title, safeTargetDate, remindBefore);
       }
       if (Notification.permission === "granted") {
-        new Notification("Sprint Created!", { body: `"${title}" saved! You'll get phone alerts before the deadline.` });
+        new Notification("Sprint Created!", { body: `"${title}" saved! You'll be reminded ${remindBefore >= 60 ? Math.round(remindBefore / 60 * 10) / 10 + 'h' : remindBefore + 'm'} before the deadline.` });
       }
-      setStatusMsg("✅ Sprint saved! Notifications armed.");
+      setStatusMsg("✅ Sprint saved! Reminder armed.");
       setTitle('');
       setSubject('');
       setTargetDate('');
-      // Refresh sprint list
       const refreshed = await fetch('/api/sprints').then(r => r.json());
       setSprints(refreshed.sprints || []);
     } else {
@@ -138,14 +202,28 @@ export default function UnifiedSprintsClient() {
     return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatRemind = (minutes: number) => {
+    if (!minutes) return '1h';
+    if (minutes >= 1440 && minutes % 1440 === 0) return `${minutes / 1440}d`;
+    if (minutes >= 60) return `${Math.round(minutes / 60 * 10) / 10}h`;
+    return `${minutes}m`;
+  };
+
+  // Sort: overdue & nearest deadlines first, no-deadline last
+  const sorted = [...sprints].sort((a, b) => {
+    if (!a.deadline) return 1;
+    if (!b.deadline) return -1;
+    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+  });
+
   return (
     <div className="flex flex-col min-h-[100dvh] bg-[#09090b] text-zinc-50 pb-24 font-sans">
       <header className="px-6 py-10 bg-gradient-to-b from-blue-900/20 to-transparent">
         <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-          Universal Sprints
+          Sprints
         </h1>
         <p className="text-zinc-400 mt-2 text-sm leading-relaxed">
-          Your study sprints with built-in phone notifications — no Google Calendar needed!
+          Plan tests, exams, homework, essays &amp; projects — with reminders on your phone and PC.
         </p>
       </header>
 
@@ -157,7 +235,7 @@ export default function UnifiedSprintsClient() {
               <p className="text-yellow-400 font-medium text-sm">Sign in to start tracking</p>
               <p className="text-zinc-500 text-xs mt-0.5">
                 {inIframe
-                  ? 'Opens in a new tab — Google blocks sign-in inside app windows. Come back here after.'
+                  ? 'Opens in a new tab — come back here after.'
                   : 'Your sprints are private to your account'}
               </p>
             </div>
@@ -177,16 +255,94 @@ export default function UnifiedSprintsClient() {
         {/* Create Sprint Form */}
         <section>
           <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-6 border border-zinc-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.5)]">
-            <h2 className="text-lg font-semibold mb-4 text-zinc-100 flex items-center justify-between">
-              Create Sprint
-              <span className="text-[10px] text-purple-400 border border-purple-500/30 bg-purple-500/10 px-2 py-1 rounded-full uppercase tracking-wider">Phone + PC Alerts</span>
-            </h2>
+            <h2 className="text-lg font-semibold mb-4 text-zinc-100">Create Sprint</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Sprint Goal (e.g. Write essay)" className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors" />
-              <input required value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors" />
-              <input required value={targetDate} onChange={(e) => setTargetDate(e.target.value)} type="datetime-local" className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors text-zinc-300" />
+
+              {/* Type picker */}
+              <div>
+                <label className="text-xs text-zinc-500 font-medium uppercase tracking-wider">What is it?</label>
+                <div className="grid grid-cols-5 gap-2 mt-2">
+                  {SPRINT_TYPES.map((t) => (
+                    <button
+                      type="button"
+                      key={t.id}
+                      onClick={() => setSprintType(t.id)}
+                      className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-center transition-all ${
+                        sprintType === t.id
+                          ? t.color + ' scale-105'
+                          : 'border-zinc-800 bg-black/30 text-zinc-500 hover:border-zinc-600'
+                      }`}
+                    >
+                      <span className="text-lg">{t.icon}</span>
+                      <span className="text-[9px] font-semibold leading-tight">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`${typeOf(sprintType).label} name (e.g. Chapter 5 ${typeOf(sprintType).label.toLowerCase()})`} className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors" />
+              <input required value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject (e.g. Maths)" className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors" />
+
+              <div>
+                <label className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Deadline</label>
+                <input required value={targetDate} onChange={(e) => setTargetDate(e.target.value)} type="datetime-local" className="w-full mt-2 bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors text-zinc-300" />
+              </div>
+
+              {/* Customizable reminder */}
+              <div>
+                <label className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Remind me</label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {REMIND_PRESETS.map((p) => (
+                    <button
+                      type="button"
+                      key={p.minutes}
+                      onClick={() => setRemindChoice(String(p.minutes))}
+                      className={`text-xs px-3 py-2 rounded-xl border transition-all ${
+                        remindChoice === String(p.minutes)
+                          ? 'border-blue-500 bg-blue-500/15 text-blue-300'
+                          : 'border-zinc-800 bg-black/30 text-zinc-400 hover:border-zinc-600'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setRemindChoice('custom')}
+                    className={`text-xs px-3 py-2 rounded-xl border transition-all ${
+                      remindChoice === 'custom'
+                        ? 'border-blue-500 bg-blue-500/15 text-blue-300'
+                        : 'border-zinc-800 bg-black/30 text-zinc-400 hover:border-zinc-600'
+                    }`}
+                  >
+                    Custom…
+                  </button>
+                </div>
+                {remindChoice === 'custom' && (
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      type="number"
+                      min="1"
+                      step="any"
+                      value={customRemind}
+                      onChange={(e) => setCustomRemind(e.target.value)}
+                      placeholder="e.g. 2"
+                      className="flex-1 bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
+                    />
+                    <select
+                      value={customUnit}
+                      onChange={(e) => setCustomUnit(e.target.value as 'minutes' | 'hours')}
+                      className="bg-black/50 border border-zinc-800 rounded-xl px-3 py-3 text-sm text-zinc-300 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="minutes">minutes before</option>
+                      <option value="hours">hours before</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
               <button disabled={loading || authStatus !== 'authenticated'} type="submit" className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-medium px-6 py-4 rounded-xl transition-all shadow-[0_0_15px_rgba(37,99,235,0.4)] active:scale-95">
-                {loading ? "Saving..." : authStatus !== 'authenticated' ? "Sign in first" : "Add Sprint"}
+                {loading ? "Saving..." : authStatus !== 'authenticated' ? "Sign in first" : `Add ${typeOf(sprintType).label} Sprint`}
               </button>
             </form>
             {statusMsg && <p className={`text-sm mt-3 font-medium ${statusMsg.includes('❌') ? 'text-red-400' : 'text-green-400'}`}>{statusMsg}</p>}
@@ -198,39 +354,52 @@ export default function UnifiedSprintsClient() {
           <h2 className="text-lg font-semibold mb-4 px-1">Your Sprints</h2>
           {fetching ? (
             <div className="text-center py-10 text-zinc-500 text-sm animate-pulse">Loading...</div>
-          ) : sprints.length === 0 ? (
+          ) : sorted.length === 0 ? (
             <div className="text-center py-10 text-zinc-500 text-sm">
               {authStatus === 'authenticated' ? "No sprints yet. Add one above!" : "Sign in to see your sprints."}
             </div>
           ) : (
             <div className="space-y-3">
-              {sprints.map(sprint => (
-                <div key={sprint.id} className="group bg-zinc-900/40 hover:bg-zinc-800/60 transition-colors border border-zinc-800/80 rounded-2xl p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-zinc-200">{sprint.title}</h3>
-                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className="text-xs text-blue-400 font-medium tracking-wide uppercase px-2 py-0.5 bg-blue-500/10 rounded-full">
-                          {sprint.subject?.name || "—"}
-                        </span>
-                        {sprint.deadline && (
-                          <span className="text-xs text-zinc-400">
-                            📅 {formatDeadline(sprint.deadline)}
+              {sorted.map(sprint => {
+                const t = typeOf(sprint.type);
+                const cd = sprint.deadline ? countdown(sprint.deadline, now) : null;
+                return (
+                  <div key={sprint.id} className={`group bg-zinc-900/40 hover:bg-zinc-800/60 transition-colors border rounded-2xl p-5 ${cd?.overdue ? 'border-red-500/40' : 'border-zinc-800/80'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${t.color}`}>
+                            {t.icon} {t.label}
                           </span>
-                        )}
+                          <span className="text-xs text-blue-400 font-medium px-2 py-0.5 bg-blue-500/10 rounded-full truncate">
+                            {sprint.subject?.name || "—"}
+                          </span>
+                        </div>
+                        <h3 className="font-medium text-zinc-200 mt-2">{sprint.title}</h3>
+                        <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs">
+                          {sprint.deadline && (
+                            <>
+                              <span className="text-zinc-400">📅 {formatDeadline(sprint.deadline)}</span>
+                              <span className={`font-semibold ${cd?.overdue ? 'text-red-400' : cd?.urgent ? 'text-amber-400' : 'text-green-400'}`}>
+                                ⏳ {cd?.text}
+                              </span>
+                              <span className="text-zinc-500">🔔 {formatRemind(sprint.remindBefore)} before</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button onClick={() => startLaptopTimer(sprint.title)} className="bg-zinc-800 hover:bg-green-600/30 hover:border-green-500 transition-all border border-zinc-700 text-zinc-300 font-medium text-xs px-3 py-2 rounded-xl">
+                          ⏱ 25m
+                        </button>
+                        <button onClick={() => handleDelete(sprint.id)} className="bg-zinc-800 hover:bg-red-600/30 hover:border-red-500 transition-all border border-zinc-700 text-red-400 font-medium text-xs px-3 py-2 rounded-xl">
+                          ✕
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={() => startLaptopTimer(sprint.title)} className="bg-zinc-800 hover:bg-green-600/30 hover:border-green-500 transition-all border border-zinc-700 text-zinc-300 font-medium text-xs px-3 py-2 rounded-xl">
-                        ⏱ 25m
-                      </button>
-                      <button onClick={() => handleDelete(sprint.id)} className="bg-zinc-800 hover:bg-red-600/30 hover:border-red-500 transition-all border border-zinc-700 text-red-400 font-medium text-xs px-3 py-2 rounded-xl">
-                        ✕
-                      </button>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

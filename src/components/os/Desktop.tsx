@@ -5,7 +5,9 @@ import Window, { WindowState } from './Window';
 import Calculator from './apps/Calculator';
 import Browser from './apps/Browser';
 import AIChat from './apps/AIChat';
+import Settings from './apps/Settings';
 import LoginScreen from './LoginScreen';
+import { loadSettings, onSettingsChange, wallpaperCss, DEFAULT_SETTINGS, OSSettings } from '@/lib/osSettings';
 
 interface AppDef {
   id: string;
@@ -41,7 +43,17 @@ const APPS: AppDef[] = [
     id: 'calculator', title: 'Calculator', icon: '🧮', width: 320, height: 460,
     render: () => <Calculator />,
   },
+  {
+    id: 'settings', title: 'Settings', icon: '⚙️', width: 480, height: 620,
+    render: () => <Settings />,
+  },
 ];
+
+const ICON_SIZES = {
+  small: { emoji: 'text-2xl', box: 'w-16' },
+  medium: { emoji: 'text-3xl', box: 'w-20' },
+  large: { emoji: 'text-4xl', box: 'w-24' },
+} as const;
 
 function Clock() {
   const [now, setNow] = useState<Date | null>(null);
@@ -69,6 +81,13 @@ export default function Desktop() {
   const [windows, setWindows] = useState<WindowState[]>([]);
   const [zCounter, setZCounter] = useState(10);
   const [startOpen, setStartOpen] = useState(false);
+  const [osSettings, setOsSettings] = useState<OSSettings>(DEFAULT_SETTINGS);
+
+  // Load saved customization and react to Settings app changes live
+  useEffect(() => {
+    setOsSettings(loadSettings());
+    return onSettingsChange(setOsSettings);
+  }, []);
 
   const focusedId = windows.reduce<string | null>(
     (top, w) => (!w.minimized && (top === null || w.z > windows.find(x => x.id === top)!.z) ? w.id : top),
@@ -131,25 +150,26 @@ export default function Desktop() {
     return <LoginScreen onContinueAsGuest={() => setGuest(true)} />;
   }
 
+  const iconSize = ICON_SIZES[osSettings.iconSize] || ICON_SIZES.medium;
+  const taskbarTop = osSettings.taskbarPosition === 'top';
+
   return (
     <div
       className="relative h-[100dvh] w-full overflow-hidden select-none"
-      style={{
-        background: 'radial-gradient(ellipse at 30% 20%, #1e2a52 0%, #0b1020 55%, #060810 100%)',
-      }}
+      style={{ background: wallpaperCss(osSettings.wallpaper) }}
       onClick={() => setStartOpen(false)}
     >
       {/* Desktop icons */}
-      <div className="absolute top-6 left-6 grid grid-flow-col grid-rows-6 gap-3 z-0">
+      <div className={`absolute left-6 grid grid-flow-col grid-rows-6 gap-3 z-0 ${taskbarTop ? 'top-[72px]' : 'top-6'}`}>
         {APPS.map((app) => (
           <button
             key={app.id}
             onDoubleClick={() => openApp(app)}
             onClick={(e) => e.stopPropagation()}
-            className="flex flex-col items-center gap-1.5 w-20 p-2 rounded-xl hover:bg-white/10 active:bg-white/15 transition-colors"
+            className={`flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-white/10 active:bg-white/15 transition-colors ${iconSize.box}`}
             title={`Double-click to open ${app.title}`}
           >
-            <span className="text-3xl drop-shadow-lg">{app.icon}</span>
+            <span className={`drop-shadow-lg ${iconSize.emoji}`}>{app.icon}</span>
             <span className="text-[11px] text-zinc-200 font-medium drop-shadow">{app.title}</span>
           </button>
         ))}
@@ -178,7 +198,7 @@ export default function Desktop() {
       {/* Start menu */}
       {startOpen && (
         <div
-          className="absolute bottom-[60px] left-2 w-72 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-3 shadow-2xl shadow-black z-[9999]"
+          className={`absolute left-2 w-72 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-3 shadow-2xl shadow-black z-[9999] ${taskbarTop ? 'top-[60px]' : 'bottom-[60px]'}`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-2 pb-2 mb-1 border-b border-zinc-800">
@@ -221,7 +241,7 @@ export default function Desktop() {
       )}
 
       {/* Taskbar */}
-      <div className="absolute bottom-0 left-0 right-0 h-[52px] bg-black/70 backdrop-blur-xl border-t border-zinc-800/80 flex items-center px-2 gap-1 z-[9998]">
+      <div className={`absolute left-0 right-0 h-[52px] bg-black/70 backdrop-blur-xl flex items-center px-2 gap-1 z-[9998] ${taskbarTop ? 'top-0 border-b border-zinc-800/80' : 'bottom-0 border-t border-zinc-800/80'}`}>
         <button
           onClick={(e) => { e.stopPropagation(); setStartOpen((s) => !s); }}
           className={`h-10 px-3 rounded-lg flex items-center gap-2 transition-colors ${
@@ -246,9 +266,10 @@ export default function Desktop() {
               }}
               className={`h-10 px-3 rounded-lg flex items-center gap-2 max-w-[160px] border-b-2 transition-colors ${
                 focusedId === win.id && !win.minimized
-                  ? 'bg-zinc-800/90 border-blue-500'
+                  ? 'bg-zinc-800/90'
                   : 'hover:bg-zinc-800/60 border-transparent'
               }`}
+              style={focusedId === win.id && !win.minimized ? { borderBottomColor: osSettings.accent } : undefined}
             >
               <span>{win.icon}</span>
               <span className="text-xs text-zinc-300 truncate hidden md:block">{win.title}</span>

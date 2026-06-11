@@ -14,6 +14,7 @@
     "@mlc-ai/web-llm": "^0.2.84",
     "@prisma/client": "^6.0.0",
     "@vercel/analytics": "latest",
+    "bcryptjs": "^3.0.3",
     "date-fns": "^4.1.0",
     "lucide-react": "^1.0.1",
     "next": "16.2.1",
