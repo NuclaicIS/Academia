@@ -71,3 +71,16 @@ model SavedArticle {
 
   @@index([userEmail])
 }
+
+model Document {
+  id        String   @id @default(uuid())
+  userEmail String
+  name      String
+  ext       String // png | jpeg | pdf | txt | pptx | xlsx | docx
+  mime      String
+  size      Int // bytes of the original file
+  data      String // base64-encoded file contents
+  createdAt DateTime @default(now())
+
+  @@index([userEmail])
+}

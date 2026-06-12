@@ -6,6 +6,7 @@ import Calculator from './apps/Calculator';
 import Browser from './apps/Browser';
 import AIChat from './apps/AIChat';
 import Settings from './apps/Settings';
+import Documents from './apps/Documents';
 import LoginScreen from './LoginScreen';
 import { loadSettings, onSettingsChange, wallpaperCss, loadAccountSettings, DEFAULT_SETTINGS, OSSettings } from '@/lib/osSettings';
 
@@ -38,6 +39,10 @@ const APPS: AppDef[] = [
   {
     id: 'browser', title: 'Browser', icon: '🌐', width: 900, height: 620,
     render: () => <Browser />,
+  },
+  {
+    id: 'documents', title: 'Documents', icon: '📂', width: 560, height: 620,
+    render: () => <Documents />,
   },
   {
     id: 'calculator', title: 'Calculator', icon: '🧮', width: 320, height: 460,
