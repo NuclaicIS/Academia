@@ -25,10 +25,11 @@ interface WindowProps {
   onMove: (x: number, y: number) => void;
   onResize: (width: number, height: number) => void;
   children: React.ReactNode;
+  glass?: boolean;
 }
 
 export default function Window({
-  win, focused, onFocus, onClose, onMinimize, onToggleMaximize, onMove, onResize, children,
+  win, focused, onFocus, onClose, onMinimize, onToggleMaximize, onMove, onResize, children, glass = false,
 }: WindowProps) {
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const resizeRef = useRef<{ startX: number; startY: number; origW: number; origH: number } | null>(null);
@@ -77,8 +78,10 @@ export default function Window({
 
   return (
     <div
-      className={`absolute flex flex-col rounded-xl overflow-hidden border shadow-2xl shadow-black/60 bg-zinc-950 transition-shadow ${
-        focused ? 'border-zinc-600' : 'border-zinc-800'
+      className={`absolute flex flex-col overflow-hidden border shadow-2xl shadow-black/60 transition-shadow ${
+        glass
+          ? `rounded-2xl backdrop-blur-2xl bg-zinc-900/55 ${focused ? 'border-white/25' : 'border-white/10'}`
+          : `rounded-xl bg-zinc-950 ${focused ? 'border-zinc-600' : 'border-zinc-800'}`
       }`}
       style={style}
       onPointerDown={onFocus}
@@ -86,7 +89,9 @@ export default function Window({
       {/* Title bar */}
       <div
         className={`flex items-center gap-2 px-3 h-9 select-none cursor-grab active:cursor-grabbing shrink-0 ${
-          focused ? 'bg-zinc-800' : 'bg-zinc-900'
+          glass
+            ? (focused ? 'bg-white/10' : 'bg-white/5')
+            : (focused ? 'bg-zinc-800' : 'bg-zinc-900')
         }`}
         onPointerDown={onTitlePointerDown}
         onPointerMove={onTitlePointerMove}

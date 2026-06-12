@@ -3,11 +3,15 @@
 // OS look-and-feel settings, persisted in localStorage so each computer
 // keeps its own customization (rice it like Arch).
 
+export type OSTheme = 'default' | 'tahoe';
+
 export interface OSSettings {
   wallpaper: string;
   accent: string;
   iconSize: 'small' | 'medium' | 'large';
   taskbarPosition: 'bottom' | 'top';
+  theme: OSTheme;
+  clock24h: boolean;
 }
 
 export const WALLPAPERS: { id: string; name: string; css: string }[] = [
@@ -19,6 +23,13 @@ export const WALLPAPERS: { id: string; name: string; css: string }[] = [
   { id: 'ocean', name: 'Ocean', css: 'linear-gradient(180deg, #002133 0%, #003a52 60%, #001821 100%)' },
   { id: 'dracula', name: 'Dracula', css: 'linear-gradient(135deg, #282a36 0%, #1e1f29 70%, #15151c 100%)' },
   { id: 'matrix', name: 'Terminal Green', css: 'radial-gradient(ellipse at 50% 0%, #032b03 0%, #021202 60%, #000500 100%)' },
+  // Bright, vivid gradients — these shine with the macOS Tahoe glass theme
+  { id: 'tahoe', name: 'Tahoe', css: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 35%, #06b6d4 70%, #22d3ee 100%)' },
+  { id: 'sequoia', name: 'Sequoia', css: 'linear-gradient(135deg, #7c3aed 0%, #db2777 50%, #f97316 100%)' },
+  { id: 'aurora', name: 'Aurora', css: 'linear-gradient(135deg, #0f766e 0%, #2563eb 45%, #7c3aed 100%)' },
+  { id: 'sky', name: 'Sky', css: 'linear-gradient(180deg, #60a5fa 0%, #3b82f6 40%, #1e40af 100%)' },
+  { id: 'peach', name: 'Peach', css: 'linear-gradient(135deg, #fb7185 0%, #f59e0b 50%, #fbbf24 100%)' },
+  { id: 'graphite', name: 'Graphite', css: 'linear-gradient(135deg, #3f3f46 0%, #27272a 55%, #18181b 100%)' },
 ];
 
 export const ACCENTS: { id: string; name: string; hex: string }[] = [
@@ -30,6 +41,17 @@ export const ACCENTS: { id: string; name: string; hex: string }[] = [
   { id: 'orange', name: 'Orange', hex: '#f97316' },
   { id: 'red', name: 'Red', hex: '#ef4444' },
   { id: 'teal', name: 'Teal', hex: '#14b8a6' },
+  { id: 'indigo', name: 'Indigo', hex: '#6366f1' },
+  { id: 'rose', name: 'Rose', hex: '#f43f5e' },
+  { id: 'amber', name: 'Amber', hex: '#f59e0b' },
+  { id: 'lime', name: 'Lime', hex: '#84cc16' },
+  { id: 'sky', name: 'Sky', hex: '#0ea5e9' },
+  { id: 'violet', name: 'Violet', hex: '#8b5cf6' },
+];
+
+export const THEMES: { id: OSTheme; name: string; desc: string }[] = [
+  { id: 'default', name: 'Classic', desc: 'Solid dark windows — fast and focused.' },
+  { id: 'tahoe', name: 'macOS Tahoe', desc: 'Liquid Glass — translucent, blurred, floating dock.' },
 ];
 
 export const DEFAULT_SETTINGS: OSSettings = {
@@ -37,6 +59,8 @@ export const DEFAULT_SETTINGS: OSSettings = {
   accent: '#3b82f6',
   iconSize: 'medium',
   taskbarPosition: 'bottom',
+  theme: 'default',
+  clock24h: false,
 };
 
 const KEY = 'academic-os-settings';

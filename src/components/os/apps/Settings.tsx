@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import {
-  loadSettings, saveSettings, WALLPAPERS, ACCENTS, OSSettings,
+  loadSettings, saveSettings, WALLPAPERS, ACCENTS, THEMES, OSSettings,
 } from '@/lib/osSettings';
 
 export default function Settings() {
@@ -18,6 +18,26 @@ export default function Settings() {
         <h2 className="text-sm font-semibold text-zinc-100">🎨 Appearance</h2>
         <p className="text-[11px] text-zinc-500 mt-0.5">Make it yours — saved on this computer.</p>
       </div>
+
+      {/* Theme */}
+      <section>
+        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Theme</h3>
+        <div className="grid grid-cols-2 gap-2.5">
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => apply({ theme: t.id })}
+              className={`text-left p-3 rounded-2xl border transition-all ${
+                settings.theme === t.id ? 'text-white' : 'border-zinc-800 bg-black/30 text-zinc-400 hover:border-zinc-600'
+              }`}
+              style={settings.theme === t.id ? { borderColor: settings.accent, background: settings.accent + '1f' } : undefined}
+            >
+              <div className="text-sm font-semibold text-zinc-100">{t.name}</div>
+              <div className="text-[10px] text-zinc-500 mt-1 leading-snug">{t.desc}</div>
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* Wallpaper */}
       <section>
@@ -103,9 +123,30 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* Clock format */}
+      <section>
+        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Clock format</h3>
+        <div className="flex gap-2">
+          {([['12-hour', false], ['24-hour', true]] as const).map(([label, is24]) => (
+            <button
+              key={label}
+              onClick={() => apply({ clock24h: is24 })}
+              className={`text-xs px-4 py-2 rounded-xl border transition-all ${
+                settings.clock24h === is24
+                  ? 'text-white'
+                  : 'border-zinc-800 bg-black/30 text-zinc-400 hover:border-zinc-600'
+              }`}
+              style={settings.clock24h === is24 ? { borderColor: settings.accent, background: settings.accent + '26' } : undefined}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
       <button
         onClick={() => {
-          apply({ wallpaper: 'midnight', accent: '#3b82f6', iconSize: 'medium', taskbarPosition: 'bottom' });
+          apply({ wallpaper: 'midnight', accent: '#3b82f6', iconSize: 'medium', taskbarPosition: 'bottom', theme: 'default', clock24h: false });
         }}
         className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2"
       >

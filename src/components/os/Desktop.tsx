@@ -55,7 +55,7 @@ const ICON_SIZES = {
   large: { emoji: 'text-4xl', box: 'w-24' },
 } as const;
 
-function Clock() {
+function Clock({ hour12 }: { hour12: boolean }) {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     setNow(new Date());
@@ -66,7 +66,7 @@ function Clock() {
   return (
     <div className="text-right leading-tight">
       <div className="text-xs font-medium text-zinc-200">
-        {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12 })}
       </div>
       <div className="text-[10px] text-zinc-500">
         {now.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}
@@ -159,6 +159,7 @@ export default function Desktop() {
 
   const iconSize = ICON_SIZES[osSettings.iconSize] || ICON_SIZES.medium;
   const taskbarTop = osSettings.taskbarPosition === 'top';
+  const glass = osSettings.theme === 'tahoe';
 
   return (
     <div
@@ -196,6 +197,7 @@ export default function Desktop() {
             onToggleMaximize={() => update(win.id, { maximized: !win.maximized })}
             onMove={(x, y) => update(win.id, { x, y })}
             onResize={(width, height) => update(win.id, { width, height })}
+            glass={glass}
           >
             {app.render()}
           </Window>
@@ -205,7 +207,9 @@ export default function Desktop() {
       {/* Start menu */}
       {startOpen && (
         <div
-          className={`absolute left-2 w-72 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-3 shadow-2xl shadow-black z-[9999] ${taskbarTop ? 'top-[60px]' : 'bottom-[60px]'}`}
+          className={`absolute left-2 w-72 backdrop-blur-2xl rounded-2xl p-3 shadow-2xl shadow-black z-[9999] ${
+            glass ? 'bg-zinc-900/60 border border-white/15' : 'bg-zinc-950/95 border border-zinc-800'
+          } ${taskbarTop ? 'top-[60px]' : 'bottom-[60px]'}`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-2 pb-2 mb-1 border-b border-zinc-800">
@@ -247,8 +251,12 @@ export default function Desktop() {
         </div>
       )}
 
-      {/* Taskbar */}
-      <div className={`absolute left-0 right-0 h-[52px] bg-black/70 backdrop-blur-xl flex items-center px-2 gap-1 z-[9998] ${taskbarTop ? 'top-0 border-b border-zinc-800/80' : 'bottom-0 border-t border-zinc-800/80'}`}>
+      {/* Taskbar — a floating Liquid Glass dock under the Tahoe theme */}
+      <div className={`absolute flex items-center gap-1 z-[9998] ${
+        glass
+          ? `left-1/2 -translate-x-1/2 max-w-[94%] h-14 px-3 rounded-3xl bg-white/10 backdrop-blur-2xl border border-white/15 shadow-2xl shadow-black/50 ${taskbarTop ? 'top-3' : 'bottom-3'}`
+          : `left-0 right-0 h-[52px] px-2 bg-black/70 backdrop-blur-xl ${taskbarTop ? 'top-0 border-b border-zinc-800/80' : 'bottom-0 border-t border-zinc-800/80'}`
+      }`}>
         <button
           onClick={(e) => { e.stopPropagation(); setStartOpen((s) => !s); }}
           className={`h-10 px-3 rounded-lg flex items-center gap-2 transition-colors ${
@@ -285,7 +293,7 @@ export default function Desktop() {
         </div>
 
         <div className="px-3">
-          <Clock />
+          <Clock hour12={!osSettings.clock24h} />
         </div>
       </div>
     </div>
