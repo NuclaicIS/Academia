@@ -1,12 +1,14 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { ocrImage, tutorOnText } from '@/lib/localTutor';
 
 export default function TutorPage() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,24 +17,29 @@ export default function TutorPage() {
     setLoading(true);
     setFeedback(null);
 
-    const formData = new FormData();
-    formData.append('image', file);
-
     try {
-      const res = await fetch('/api/tutor', {
-        method: 'POST',
-        body: formData,
-      });
+      // Step 1: read the homework off the image — runs in the browser, no key.
+      setStatus('Reading your homework… 0%');
+      const text = await ocrImage(file, (pct) => setStatus(`Reading your homework… ${pct}%`));
 
-      const data = await res.json();
-      if (res.ok) {
-        setFeedback(data.text);
-      } else {
-        setFeedback('Error: ' + data.error);
+      if (!text) {
+        setStatus(null);
+        setFeedback("I couldn't read any text from that image. Try a clearer, brighter photo with the writing facing straight on.");
+        return;
       }
+
+      // Step 2: let the local AI tutor work on the transcribed text — no key.
+      setStatus('Thinking…');
+      await tutorOnText(
+        text,
+        (full) => { setFeedback(full); setStatus(null); },
+        (s) => setStatus(s),
+      );
     } catch (err) {
-      setFeedback('Something went wrong. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      setFeedback('⚠️ ' + msg);
     } finally {
+      setStatus(null);
       setLoading(false);
     }
   };
@@ -92,6 +99,13 @@ export default function TutorPage() {
             {loading ? 'Analyzing...' : 'Check My Work'}
           </button>
         </form>
+
+        {/* Live status while OCR / the local model works */}
+        {status && (
+          <div className="w-full max-w-sm rounded-2xl px-4 py-3 text-xs bg-zinc-900/70 border border-zinc-800 text-zinc-400 animate-pulse">
+            ⏳ {status}
+          </div>
+        )}
 
         {/* Feedback Display */}
         {feedback && (

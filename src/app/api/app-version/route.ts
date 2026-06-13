@@ -9,10 +9,10 @@ import { NextResponse } from 'next/server';
 //     academic-os-android/src/lib/update.ts (CURRENT_VERSION_CODE). <<<
 
 const LATEST = {
-  versionCode: 2,
-  versionName: '1.1.0',
+  versionCode: 3,
+  versionName: '1.2.0',
   apkUrl: 'https://github.com/vidhanagrwal92-netizen/academic-os-app/releases/latest/download/AcademicOS.apk',
-  notes: 'Document Keeper on phone, clearer iOS 26 theme, raised dock, and in-app updates.',
+  notes: 'New keyless Vision Tutor: snap a photo of your homework and the on-device AI checks it step by step — no account or limits.',
 };
 
 export const dynamic = 'force-dynamic';
