@@ -16,13 +16,16 @@
     "@vercel/analytics": "latest",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.1.0",
+    "docx": "^9.7.1",
+    "docx-preview": "^0.3.7",
     "lucide-react": "^1.0.1",
     "next": "16.2.1",
     "next-auth": "^4.24.13",
     "prisma": "^6.0.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "tesseract.js": "^6.0.1"
+    "tesseract.js": "^6.0.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

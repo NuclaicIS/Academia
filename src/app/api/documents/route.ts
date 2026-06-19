@@ -100,6 +100,30 @@ export async function PUT(req: Request) {
   return NextResponse.json({ document: doc });
 }
 
+export async function PATCH(req: Request) {
+  // Save edits to an existing document (new base64 contents for the same file).
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+  const { id, data } = await req.json();
+  if (!id || !data) return NextResponse.json({ error: 'Missing id or data' }, { status: 400 });
+
+  const base64 = String(data).includes(',') ? String(data).split(',').pop()! : String(data);
+  const size = Math.floor((base64.length * 3) / 4);
+  if (size > MAX_FILE_BYTES) {
+    return NextResponse.json(
+      { error: `File too large (${(size / 1024 / 1024).toFixed(1)} MB). Max is 3 MB.` },
+      { status: 413 },
+    );
+  }
+
+  const result = await prisma.document.updateMany({
+    where: { id, userEmail: session.user.email },
+    data: { data: base64, size },
+  });
+  if (result.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json({ success: true, size });
+}
+
 export async function DELETE(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
