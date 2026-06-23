@@ -9,10 +9,10 @@ import { NextResponse } from 'next/server';
 //     academic-os-android/src/lib/update.ts (CURRENT_VERSION_CODE). <<<
 
 const LATEST = {
-  versionCode: 3,
-  versionName: '1.2.0',
+  versionCode: 4,
+  versionName: '1.3.0',
   apkUrl: 'https://github.com/vidhanagrwal92-netizen/academic-os-app/releases/latest/download/AcademicOS.apk',
-  notes: 'New keyless Vision Tutor: snap a photo of your homework and the on-device AI checks it step by step — no account or limits.',
+  notes: 'Documents now open right inside the app: view and edit text files, spreadsheets and Word docs, and create new ones — no other app needed.',
 };
 
 export const dynamic = 'force-dynamic';
